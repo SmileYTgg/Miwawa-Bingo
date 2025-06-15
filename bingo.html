@@ -1,0 +1,208 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Bingo Board</title>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      align-items: center;
+      height: 100vh;
+      margin: 0;
+      background-color: #f0f0f0;
+    }
+    .controls {
+      display: flex;
+      gap: 10px;
+      align-items: center;
+    }
+    .bingo-board {
+      display: grid;
+      grid-template-columns: repeat(5, 100px);
+      grid-template-rows: repeat(5, 100px);
+      gap: 5px;
+      margin-top: 20px;
+    }
+    .cell {
+      background-color: white;
+      border: 2px solid #ccc;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      text-align: center;
+      cursor: pointer;
+      font-size: 16px;
+      padding: 10px;
+      box-sizing: border-box;
+      transition: background-color 0.3s;
+    }
+    .cell.active {
+      background-color: #4caf50;
+      color: white;
+      border-color: #388e3c;
+    }
+    .cell.bingo {
+      background-color: #ff9800 !important;
+    }
+    button {
+      padding: 10px 20px;
+      font-size: 16px;
+      cursor: pointer;
+      background-color: #2196f3;
+      color: white;
+      border: none;
+      border-radius: 5px;
+    }
+    button:hover {
+      background-color: #1976d2;
+    }
+    label {
+      font-size: 16px;
+    }
+  </style>
+</head>
+<body>
+  <div class="controls">
+    <button onclick="generateBoard()">Generate New Board</button>
+    <label>
+      <input type="checkbox" id="includeFreeSpace" /> Include Free Space in Center
+    </label>
+  </div>
+  <div class="bingo-board" id="bingoBoard">
+    <!-- Cells will be generated here -->
+  </div>
+
+  <script>
+    const board = document.getElementById('bingoBoard');
+    const includeFreeSpaceCheckbox = document.getElementById('includeFreeSpace');
+
+    includeFreeSpaceCheckbox.addEventListener('change', () => {
+      localStorage.setItem('includeFreeSpace', includeFreeSpaceCheckbox.checked);
+    });
+
+    async function generateBoard() {
+      try {
+        const response = await fetch('bingo-cells.json');
+        const allCells = await response.json();
+
+        board.innerHTML = '';
+        const includeFreeSpace = includeFreeSpaceCheckbox.checked;
+
+        let shuffled = allCells.sort(() => 0.5 - Math.random());
+
+        if (includeFreeSpace) {
+          shuffled = shuffled.slice(0, 24);
+        } else {
+          shuffled = shuffled.slice(0, 25);
+        }
+
+        const boardData = [];
+
+        for (let i = 0; i < 25; i++) {
+          const cell = document.createElement('div');
+          cell.classList.add('cell');
+          cell.dataset.index = i;
+
+          let text = '';
+          let isActive = false;
+
+          if (includeFreeSpace && i === 12) {
+            text = 'Free Space';
+            isActive = true;
+          } else {
+            text = includeFreeSpace && i > 12 ? shuffled[i - 1] : shuffled[i];
+          }
+
+          cell.textContent = text;
+          if (isActive) cell.classList.add('active');
+
+          cell.addEventListener('click', () => {
+            cell.classList.toggle('active');
+            saveBoardState();
+            checkBingo();
+          });
+
+          board.appendChild(cell);
+          boardData.push({ text, isActive });
+        }
+
+        saveBoardState(boardData);
+        checkBingo();
+
+      } catch (error) {
+        console.error('Failed to load bingo cells:', error);
+      }
+    }
+
+    function saveBoardState(data) {
+      const cells = [...board.children];
+      const boardState = data || cells.map(cell => ({
+        text: cell.textContent,
+        isActive: cell.classList.contains('active')
+      }));
+
+      localStorage.setItem('bingoBoard', JSON.stringify(boardState));
+    }
+
+    function loadBoardState() {
+      const boardState = JSON.parse(localStorage.getItem('bingoBoard'));
+      const includeFreeSpace = localStorage.getItem('includeFreeSpace') === 'true';
+      includeFreeSpaceCheckbox.checked = includeFreeSpace;
+
+      if (!boardState) {
+        generateBoard();
+        return;
+      }
+
+      board.innerHTML = '';
+
+      boardState.forEach((cellData, i) => {
+        const cell = document.createElement('div');
+        cell.classList.add('cell');
+        cell.dataset.index = i;
+        cell.textContent = cellData.text;
+
+        if (cellData.isActive) cell.classList.add('active');
+
+        cell.addEventListener('click', () => {
+          cell.classList.toggle('active');
+          saveBoardState();
+          checkBingo();
+        });
+
+        board.appendChild(cell);
+      });
+
+      checkBingo();
+    }
+
+    function checkBingo() {
+      const cells = [...board.children];
+      const lines = [];
+
+      for (let r = 0; r < 5; r++) {
+        lines.push([0, 1, 2, 3, 4].map(c => r * 5 + c));
+      }
+      for (let c = 0; c < 5; c++) {
+        lines.push([0, 1, 2, 3, 4].map(r => r * 5 + c));
+      }
+      lines.push([0, 6, 12, 18, 24]);
+      lines.push([4, 8, 12, 16, 20]);
+
+      cells.forEach(cell => cell.classList.remove('bingo'));
+
+      lines.forEach(line => {
+        if (line.every(i => cells[i].classList.contains('active'))) {
+          line.forEach(i => cells[i].classList.add('bingo'));
+        }
+      });
+    }
+
+    loadBoardState();
+  </script>
+</body>
+</html>
