@@ -4,204 +4,262 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Bingo Board</title>
+  <link href="https://fonts.googleapis.com/css2?family=Luckiest+Guy&display=swap" rel="stylesheet">
   <style>
+    html, body {
+      height: 100%; margin: 0; background-color: #B3EDF1;
+    }
     body {
-      font-family: Arial, sans-serif;
+      font-family: 'Luckiest Guy', cursive;
+      display: flex; justify-content: center; align-items: center;
+    }
+    .background-wrapper {
+      position: relative;
+      width: 100%;
+      height: 100%;
+      background: #B3EDF1 url('background.jpg') center/contain no-repeat;
       display: flex;
-      flex-direction: column;
       justify-content: center;
       align-items: center;
-      height: 100vh;
-      margin: 0;
-      background-color: #f0f0f0;
+      padding: 20px;
+      box-sizing: border-box;
+    }
+    .container {
+      display: flex; flex-direction: column; align-items: center;
+      background-color: rgba(255, 255, 255, 0.8);
+      padding: 20px; border-radius: 8px; gap: 20px; max-width: 520px;
+    }
+    .title {
+      font-size: 40px; margin: 0; text-align: center; 
+      padding: 10px; border-radius: 10px; padding-inline: 10%; 
+      letter-spacing: 3px;
+      color: #ffffff; background-color: #2196f3;
     }
     .controls {
-      display: flex;
-      gap: 10px;
-      align-items: center;
+      display: flex; flex-wrap: wrap; gap: 10px;
+      max-width: 100%; justify-content: center;
+    }
+    .advanced-options {
+      display: none; flex-wrap: wrap; gap: 10px;
+      max-width: 100%; justify-content: center;
     }
     .bingo-board {
       display: grid;
       grid-template-columns: repeat(5, 100px);
       grid-template-rows: repeat(5, 100px);
       gap: 5px;
-      margin-top: 20px;
     }
     .cell {
-      background-color: white;
-      border: 2px solid #ccc;
-      display: flex;
-      justify-content: center;
-      align-items: center;
-      text-align: center;
-      cursor: pointer;
-      font-size: 16px;
-      padding: 10px;
-      box-sizing: border-box;
+      background: white; border: 2px solid #ccc;
+      display: flex; justify-content: center; align-items: center;
+      text-align: center; cursor: pointer; font-size: 16px;
+      padding: 10px; box-sizing: border-box;
       transition: background-color 0.3s;
     }
     .cell.active {
-      background-color: #4caf50;
-      color: white;
-      border-color: #388e3c;
+      background-color: #4caf50; color: white; border-color: #388e3c;
     }
     .cell.bingo {
       background-color: #ff9800 !important;
     }
     button {
-      padding: 10px 20px;
-      font-size: 16px;
-      cursor: pointer;
-      background-color: #2196f3;
-      color: white;
-      border: none;
-      border-radius: 5px;
+      padding: 10px 20px; font-size: 16px; cursor: pointer;
+      background-color: #2196f3; color: white;
+      border: none; border-radius: 5px; white-space: nowrap;
     }
     button:hover {
       background-color: #1976d2;
     }
     label {
-      font-size: 16px;
+      font-size: 16px; display: flex; align-items: center;
+    }
+    textarea {
+      width: 100%; height: 60px; resize: none; margin-top: 10px; 
+      font-family: monospace;
+    }
+    .github-link {
+      position: absolute;
+      top: 15px;
+      right: 15px;
+      z-index: 1000;
+    }
+    .github-link img {
+      width: 64px;
+      height: 64px;
+      border-radius: 6px;
+      transition: transform 0.2s ease;
+    }
+    .github-link img:hover {
+      transform: scale(1.1);
     }
   </style>
 </head>
 <body>
-  <div class="controls">
-    <button onclick="generateBoard()">Generate New Board</button>
-    <label>
-      <input type="checkbox" id="includeFreeSpace" /> Include Free Space in Center
-    </label>
+   <a href="https://github.com/SmileYTgg/Miwawa-Bingo" target="_blank" class="github-link">
+    <img src="https://github.githubassets.com/assets/GitHub-Mark-ea2971cee799.png" alt="GitHub" />
+  </a>
+  <div class="background-wrapper">
+    <div class="container">
+      <h1 class="title">⭐ Bingo ⭐</h1>
+      <div class="bingo-board" id="bingoBoard"></div>
+      <div class="controls">
+        <button onclick="clearBoardMarks()">Clear Marks</button>
+        <button onclick="copyShareableLink()">Copy Shareable Link</button>
+        <button onclick="generateBoard()">Generate New Board</button>
+        <label><input type="checkbox" id="includeFreeSpace" /> Include Free Space in Center</label>
+    </div>
   </div>
-  <div class="bingo-board" id="bingoBoard">
-    <!-- Cells will be generated here -->
-  </div>
-
   <script>
     const board = document.getElementById('bingoBoard');
     const includeFreeSpaceCheckbox = document.getElementById('includeFreeSpace');
+    const boardCodeTextarea = document.getElementById('boardCode');
+    let allCells = [];
 
     includeFreeSpaceCheckbox.addEventListener('change', () => {
       localStorage.setItem('includeFreeSpace', includeFreeSpaceCheckbox.checked);
     });
 
+    function toggleAdvanced() {
+      const section = document.getElementById('advancedOptions');
+      const button = document.getElementById('toggleAdvancedBtn');
+      const isVisible = section.style.display === 'flex';
+      section.style.display = isVisible ? 'none' : 'flex';
+      button.textContent = isVisible ? 'Show Advanced Options' : 'Hide Advanced Options';
+    }
+
     async function generateBoard() {
       try {
-        const response = await fetch('bingo-cells.json');
-        const allCells = await response.json();
-
-        board.innerHTML = '';
-        const includeFreeSpace = includeFreeSpaceCheckbox.checked;
-
-        let shuffled = allCells.sort(() => 0.5 - Math.random());
-
-        if (includeFreeSpace) {
-          shuffled = shuffled.slice(0, 24);
-        } else {
-          shuffled = shuffled.slice(0, 25);
+        if (!allCells.length) {
+          const response = await fetch('bingo-cells.json');
+          allCells = await response.json();
         }
+        const includeFreeSpace = includeFreeSpaceCheckbox.checked;
+        const indices = Array.from({ length: allCells.length }, (_, i) => i)
+          .sort(() => 0.5 - Math.random())
+          .slice(0, includeFreeSpace ? 24 : 25);
 
         const boardData = [];
-
         for (let i = 0; i < 25; i++) {
-          const cell = document.createElement('div');
-          cell.classList.add('cell');
-          cell.dataset.index = i;
-
-          let text = '';
-          let isActive = false;
-
+          let text = '', isActive = false;
           if (includeFreeSpace && i === 12) {
-            text = 'Free Space';
-            isActive = true;
+            text = 'Free Space'; isActive = true;
           } else {
-            text = includeFreeSpace && i > 12 ? shuffled[i - 1] : shuffled[i];
+            text = allCells[includeFreeSpace && i > 12 ? indices[i - 1] : indices[i]];
           }
-
-          cell.textContent = text;
-          if (isActive) cell.classList.add('active');
-
-          cell.addEventListener('click', () => {
-            cell.classList.toggle('active');
-            saveBoardState();
-            checkBingo();
-          });
-
-          board.appendChild(cell);
           boardData.push({ text, isActive });
         }
-
-        saveBoardState(boardData);
-        checkBingo();
-
+        renderBoard(boardData);
+        saveBoardState(indices, boardData.map(cell => cell.isActive), includeFreeSpace);
       } catch (error) {
         console.error('Failed to load bingo cells:', error);
       }
     }
 
-    function saveBoardState(data) {
-      const cells = [...board.children];
-      const boardState = data || cells.map(cell => ({
-        text: cell.textContent,
-        isActive: cell.classList.contains('active')
-      }));
-
-      localStorage.setItem('bingoBoard', JSON.stringify(boardState));
-    }
-
-    function loadBoardState() {
-      const boardState = JSON.parse(localStorage.getItem('bingoBoard'));
-      const includeFreeSpace = localStorage.getItem('includeFreeSpace') === 'true';
-      includeFreeSpaceCheckbox.checked = includeFreeSpace;
-
-      if (!boardState) {
-        generateBoard();
-        return;
-      }
-
+    function renderBoard(boardData) {
       board.innerHTML = '';
-
-      boardState.forEach((cellData, i) => {
+      boardData.forEach((cellData, i) => {
         const cell = document.createElement('div');
         cell.classList.add('cell');
         cell.dataset.index = i;
         cell.textContent = cellData.text;
-
         if (cellData.isActive) cell.classList.add('active');
-
         cell.addEventListener('click', () => {
           cell.classList.toggle('active');
-          saveBoardState();
+          saveBoardState(null, null, null, true);
           checkBingo();
         });
-
         board.appendChild(cell);
       });
-
       checkBingo();
+    }
+
+    function saveBoardState(indices, activeStates, includeFreeSpace, updateFromDOM = false) {
+      if (updateFromDOM) {
+        const stored = localStorage.getItem('bingoBoardCompact');
+        if (!stored) return;
+        const parsed = JSON.parse(stored);
+        indices = parsed.c;
+        includeFreeSpace = parsed.f || false;
+        const cells = [...board.children];
+        activeStates = cells.map(cell => cell.classList.contains('active'));
+      }
+      const compact = { c: indices, a: activeStates.map((v, i) => v ? i : -1).filter(i => i !== -1) };
+      if (includeFreeSpace) compact.f = true;
+      localStorage.setItem('bingoBoardCompact', JSON.stringify(compact));
+    }
+
+    function loadBoardState() {
+      const stored = localStorage.getItem('bingoBoardCompact');
+      const includeFreeSpace = localStorage.getItem('includeFreeSpace') === 'true';
+      includeFreeSpaceCheckbox.checked = includeFreeSpace;
+      if (!stored) return generateBoard();
+
+      fetch('bingo-cells.json')
+        .then(res => res.json())
+        .then(data => {
+          allCells = data;
+          const { c, a, f } = JSON.parse(stored);
+          const boardData = [];
+          for (let i = 0; i < 25; i++) {
+            let text = '', isActive = false;
+            if (f && i === 12) {
+              text = 'Free Space'; isActive = true;
+            } else {
+              const idx = f && i > 12 ? c[i - 1] : c[i];
+              text = allCells[idx];
+              isActive = a.includes(i);
+            }
+            boardData.push({ text, isActive });
+          }
+          renderBoard(boardData);
+        });
+    }
+
+    function clearBoardMarks() {
+      const stored = localStorage.getItem('bingoBoardCompact');
+      if (!stored) return;
+      const parsed = JSON.parse(stored);
+      parsed.a = parsed.f ? [12] : [];
+      localStorage.setItem('bingoBoardCompact', JSON.stringify(parsed));
+      loadBoardState();
     }
 
     function checkBingo() {
       const cells = [...board.children];
       const lines = [];
-
-      for (let r = 0; r < 5; r++) {
-        lines.push([0, 1, 2, 3, 4].map(c => r * 5 + c));
-      }
-      for (let c = 0; c < 5; c++) {
-        lines.push([0, 1, 2, 3, 4].map(r => r * 5 + c));
-      }
-      lines.push([0, 6, 12, 18, 24]);
-      lines.push([4, 8, 12, 16, 20]);
-
+      for (let r = 0; r < 5; r++) lines.push([0,1,2,3,4].map(c => r*5 + c));
+      for (let c = 0; c < 5; c++) lines.push([0,1,2,3,4].map(r => r*5 + c));
+      lines.push([0,6,12,18,24], [4,8,12,16,20]);
       cells.forEach(cell => cell.classList.remove('bingo'));
-
       lines.forEach(line => {
-        if (line.every(i => cells[i].classList.contains('active'))) {
+        if (line.every(i => cells[i].classList.contains('active')))
           line.forEach(i => cells[i].classList.add('bingo'));
-        }
       });
     }
 
+    function exportBoardCode() {
+      const code = localStorage.getItem('bingoBoardCompact');
+      boardCodeTextarea.value = btoa(code);
+    }
+
+    function importBoardCode() {
+      try {
+        const decoded = atob(boardCodeTextarea.value.trim());
+        localStorage.setItem('bingoBoardCompact', decoded);
+        loadBoardState();
+      } catch (e) {
+        alert('Invalid board code');
+      }
+    }
+
+    function copyShareableLink() {
+      const code = localStorage.getItem('bingoBoardCompact');
+      const encoded = btoa(code);
+      const url = `${location.origin}${location.pathname}#code=${encoded}`;
+      navigator.clipboard.writeText(url).then(() => {
+        alert("Link copied to clipboard!");
+      });
+    }
     loadBoardState();
   </script>
 </body>
